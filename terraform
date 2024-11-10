@@ -1,0 +1,92 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.61.0"
+    }
+    random = {
+      source = "hashicorp/random"
+      version = "3.6.2"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "random_id" "rand_id" {
+    byte_length = 8
+  
+}
+
+resource "aws_s3_bucket" "demo-bucket" {
+    bucket = "demo-bucket-${random_id.rand_id.hex}"
+}
+
+resource "aws_s3_bucket_website_configuration" "demo-bucket" {
+  bucket = aws_s3_bucket.demo-bucket.id
+
+  index_document {
+    suffix = "index2.html"  # Your index document filename
+  }
+
+  error_document {
+    key = "error.html"  # Optional: your error document filename
+  }
+}
+
+
+
+resource "aws_s3_bucket_public_access_block" "example" {
+  bucket = aws_s3_bucket.demo-bucket.id
+
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+resource "aws_s3_bucket_policy" "demo-bucket" {
+  bucket = aws_s3_bucket.demo-bucket.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.demo-bucket.arn}/*"
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket.demo-bucket]
+}
+
+
+
+
+  resource "aws_s3_object" "index2_html" {
+  bucket       = aws_s3_bucket.demo-bucket.id
+  key          = "index2.html"
+  source       = "./index2.html"
+  content_type = "text/html"  # Use content_type instead of content
+}
+
+resource "aws_s3_object" "style2_css" {
+  bucket       = aws_s3_bucket.demo-bucket.id
+  key          = "style2.css"
+  source       = "./style2.css"
+  content_type = "text/css"   # Use content_type instead of content
+}
+
+
+
+   output "name" {
+    value = aws_s3_bucket_website_configuration.demo-bucket.website_endpoint
+  
+   }
+
+
